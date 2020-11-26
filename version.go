@@ -32,16 +32,66 @@ func New(version string) GoVersion {
 	}
 }
 
-func (g GoVersion)Compare(v string, compare string)  {
-
+func (g GoVersion)CompareBool(v string, symbol string) bool {
+	g1 := New(v)
+	switch symbol {
+	case ">":
+		return g.gt(g1)
+	case ">=":
+		return g.ge(g1)
+	case "<":
+		return g1.gt(g)
+	case "<=":
+		return g1.ge(g)
+	case "!=":
+		return g1.Version != v
+	case "=":
+		return g1.eq(g)
+	default:
+		return false
+	}
 }
 
 // 该版本大于等于v1
-func (g GoVersion)ge(v1 string){
+func (g GoVersion)ge(v GoVersion) bool {
+	return g.gt(v) || g.eq(v)
 }
 
 // 该版本大于v1
-func (g GoVersion)gt(v1 string){
+func (g GoVersion)gt(v GoVersion) bool {
+	if g.ge(v) {
+		return false
+	}
+	gSegments := g.segments()
+	vSegments := v.segments()
+	if len(gSegments) == 0 {
+		return false
+	}
+	if len(vSegments) == 0 {
+		return true
+	}
+	for i, v := range gSegments {
+		vI, _ := strconv.Atoi(v)
+
+		if i > len(vSegments) {
+			return true
+		}
+		iI, _ := strconv.Atoi(vSegments[i])
+		if iI > vI {
+			return false
+		}
+	}
+	return true
+}
+
+func (g GoVersion)eq(v GoVersion) bool {
+	return g.Version == v.Version
+}
+
+func (g GoVersion)Between(x1, x2 string) bool {
+	gx2 := New(x2)
+	gx1 := New(x1)
+	return gx2.ge(g) && g.ge(gx1)
 }
 
 // <=>
@@ -111,14 +161,8 @@ func (g GoVersion)EachEqual(other GoVersion) int{
 
 func (g GoVersion)segments()[]string {
 	gs := make([]string, 0)
-	reg := regexp.MustCompile("(?i)[0-9]+|[a-z]+")
-	r := regexp.MustCompile(`^\d+$`)
+	reg := regexp.MustCompile(`(?i)[0-9]+|[a-z]+`)
 	for _, v := range reg.FindStringSubmatch(g.Version) {
-		//if r1 := r.Match([]byte(v)); r1 {
-		//	vi, _ := strconv.Atoi(v)
-		//	gs = append(gs, vi)
-		//	continue
-		//}
 		gs = append(gs, v)
 	}
 	return gs
